@@ -62,10 +62,34 @@ jobs:
       run: |
         # Include the version in the build
         echo "BUILD_VERSION=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
+        
+        # Create directory structure
+        mkdir -p dist/Bartender
+        
+        # Build the executable
         pyinstaller --windowed --onefile --name Bartender \
           --add-data "Bartender.png:." \
+          --distpath dist/Bartender \
           main.py
-        chmod +x dist/Bartender
+        
+        # Copy additional files to the dist directory
+        cp README.md dist/Bartender/
+        cp Bartender.png dist/Bartender/
+        
+        # Create a simple launcher script
+        echo '#!/bin/sh
+        SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
+        cd "$SCRIPT_DIR"
+        ./Bartender' > dist/Bartender/launch.sh
+        
+        # Make scripts executable
+        chmod +x dist/Bartender/Bartender
+        chmod +x dist/Bartender/launch.sh
+        
+        # Create a zip archive of the release
+        cd dist
+        zip -r Bartender-${{ steps.version.outputs.version }}-linux.zip Bartender
+        cd ..
     
     - name: Create release
       uses: softprops/action-gh-release@v1
@@ -83,9 +107,7 @@ jobs:
           ./Bartender
           ```
         files: |
-          dist/Bartender
-          README.md
-          Bartender.png
+          dist/Bartender-${{ steps.version.outputs.version }}-linux.zip
         draft: false
         prerelease: false
       env:
