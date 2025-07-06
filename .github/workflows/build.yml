@@ -1,12 +1,19 @@
 name: Build and Release
 
+# These permissions are needed for creating releases
+permissions:
+  contents: write
+  packages: write
+  issues: write
+  pull-requests: write
+
 on:
   push:
     branches: [ main ]
     paths:
       - 'main.py'
     tags:
-      - '*'
+      - 'v*'  # Only match version tags (v1.0.0, etc.)
   workflow_dispatch:
 
 jobs:
@@ -91,24 +98,36 @@ jobs:
         zip -r Bartender-${{ steps.version.outputs.version }}-linux.zip Bartender
         cd ..
     
-    - name: Create release
-      uses: softprops/action-gh-release@v1
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ steps.version.outputs.version }}
-        name: Bartender ${{ steps.version.outputs.version }}
+        release_name: Bartender ${{ steps.version.outputs.version }}
         body: |
           ### Changes
           ${{ steps.changelog.outputs.changes }}
           
           ### Installation
-          Download the `Bartender` binary and make it executable:
-          ```bash
-          chmod +x Bartender
-          ./Bartender
-          ```
-        files: |
-          dist/Bartender-${{ steps.version.outputs.version }}-linux.zip
+          1. Download the latest release
+          2. Extract the zip file
+          3. Run the launcher:
+             ```bash
+             chmod +x Bartender/launch.sh
+             ./Bartender/launch.sh
+             ```
         draft: false
         prerelease: false
+
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/Bartender-${{ steps.version.outputs.version }}-linux.zip
+        asset_name: Bartender-${{ steps.version.outputs.version }}-linux.zip
+        asset_content_type: application/zip
